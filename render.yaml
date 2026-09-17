@@ -1,0 +1,103 @@
+# 五个独立站点的 Blueprint 定义
+# 说明：线上这五个服务是用 Render API 逐个创建的，本文件用于记录部署形态 / 重建参考。
+# 若要用 Blueprint 重建，请先删除同名服务，否则会因域名占用而失败。
+services:
+  # ---------------- 存证核心节点 + 管理控制台 + 公众验真页 ----------------
+  - type: web
+    name: tracechain-core
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120"
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: ROLE
+        value: core
+      - key: PUBLIC_BASE
+        value: https://tracechain-core.onrender.com
+      - key: ADMIN_PASSWORD
+        sync: false          # 在 Render 控制台填写真实口令，不要写进仓库
+      - key: HASH_ALGO
+        value: SHA256
+      - key: BLOCK_SIZE
+        value: "8"
+      - key: TRACE_SIGN_KEY
+        generateValue: true
+      - key: TRACE_DB
+        value: /tmp/tracechain.db
+
+  # ---------------- 四个作业站点（无状态，数据转发到核心节点） ----------------
+  - type: web
+    name: tracechain-produce
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120"
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: ROLE
+        value: produce
+      - key: CORE_URL
+        value: https://tracechain-core.onrender.com
+      - key: TRACE_DB
+        value: /tmp/tracechain.db
+
+  - type: web
+    name: tracechain-logistics
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120"
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: ROLE
+        value: logistics
+      - key: CORE_URL
+        value: https://tracechain-core.onrender.com
+      - key: TRACE_DB
+        value: /tmp/tracechain.db
+
+  - type: web
+    name: tracechain-retail
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120"
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: ROLE
+        value: retail
+      - key: CORE_URL
+        value: https://tracechain-core.onrender.com
+      - key: TRACE_DB
+        value: /tmp/tracechain.db
+
+  - type: web
+    name: tracechain-consume
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120"
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: ROLE
+        value: consume
+      - key: CORE_URL
+        value: https://tracechain-core.onrender.com
+      - key: TRACE_DB
+        value: /tmp/tracechain.db

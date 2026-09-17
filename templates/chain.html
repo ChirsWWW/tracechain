@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}区块浏览器 · 溯链 TraceChain{% endblock %}
+{% block body %}
+
+<h1>区块浏览器</h1>
+<p class="small muted">每 {{ 8 }} 条存证记录打包为一个区块，区块内事件两两哈希生成 Merkle 根，
+  区块之间依次串联。任何一条记录被改动，对应区块的 Merkle 根与后续所有区块哈希都会失配。
+  当前摘要算法：{{ algo }}。</p>
+
+<div class="grid g4" style="margin:14px 0">
+  <div class="stat"><div class="n">{{ stats.blocks }}</div><div class="l">区块数</div></div>
+  <div class="stat"><div class="n">{{ stats.events }}</div><div class="l">存证记录</div></div>
+  <div class="stat"><div class="n">{{ stats.pending }}</div><div class="l">待打包</div></div>
+  <div class="stat"><div class="n">{{ stats.codes }}</div><div class="l">追溯码</div></div>
+</div>
+
+<div class="alert {% if verify.valid %}ok{% else %}bad{% endif %}">
+  <b>{% if verify.valid %}✅ 全链校验通过{% else %}❌ 全链异常{% endif %}</b>
+  {% if verify.valid %}
+    已复核 {{ verify.blocks }} 个区块，Merkle 根与区块哈希全部一致。
+  {% else %}
+    {% for i in verify.issues %}· {{ i }}<br>{% endfor %}
+  {% endif %}
+</div>
+
+{% if not blocks %}
+  <div class="card"><p class="small muted" style="margin:0">还没有区块。当存证记录累计达到 8 条时将自动打包，
+    也可在管理端点击「立即打包区块」。</p></div>
+{% else %}
+<div class="card">
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>#</th><th>时间</th><th>事件数</th><th>Merkle 根</th><th>区块哈希</th><th>前序哈希</th></tr></thead>
+    <tbody>
+    {% for b in blocks %}
+      <tr>
+        <td><b>{{ b.height }}</b></td>
+        <td class="small">{{ b.timestamp }}</td>
+        <td>{{ b.event_count }}</td>
+        <td class="mono">{{ b.merkle_root[:24] }}…</td>
+        <td class="mono">{{ b.block_hash[:24] }}…</td>
+        <td class="mono">{{ (b.prev_hash or 'GENESIS')[:16] }}…</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h3 style="margin-top:0">关于这套"链"</h3>
+  <p class="small">本系统实现的是链式存证账本：每条记录携带前序哈希，若干记录打包为带 Merkle 根的区块，
+  区块再串联成链。它与真实联盟链在数学结构上是同一套东西，差别在于<b>共识参与者</b>——
+  本系统目前由单一服务端签名（HMAC 密钥）。要达到方案建议书中的"真联盟链"标准，
+  需接入 ≥4 个节点、覆盖 ≥3 家相互独立主体，届时把本系统的签名环节换成各主体私钥签名即可。</p>
+  <p class="small" style="margin-bottom:0"><a href="/admin">返回管理控制台</a></p>
+</div>
+
+{% endblock %}

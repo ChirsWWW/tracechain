@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block bodyattr %}data-stage="{{ stage }}" data-trace-base="{{ trace_base }}"{% endblock %}
+{% block body %}
+
+<div class="port-head {{ stage }}">
+  <div class="ph-icon">{{ meta.icon }}</div>
+  <div class="ph-txt">
+    <h1>{{ meta.label }} · {{ site.name }}</h1>
+    <p>{{ meta.brief }}</p>
+    <div class="ph-tags">
+      <span class="badge {% if meta.max == 0 %}ok{% else %}warn{% endif %}">{{ meta.repeat_hint }}</span>
+      <span class="badge">使用方：{{ meta.owner }}</span>
+      <span class="badge">本端独立网址</span>
+    </div>
+  </div>
+</div>
+
+{% block notice %}{% endblock %}
+
+<div class="card">
+  <h3 style="margin-top:0">本机操作主体</h3>
+  <div id="actor-box"></div>
+  <div id="actor-form">
+    <p class="small muted" style="margin-top:0">填写一次即可，本机后续上报会自动带上，无需重复输入。</p>
+    <div class="grid g2">
+      <div>
+        <label class="req" for="actor">主体名称</label>
+        <input id="actor" placeholder="{{ meta.owner }}">
+      </div>
+      <div>
+        <label for="region">所在地区</label>
+        <input id="region" placeholder="如：重庆 渝中区">
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:10px">
+      <button class="btn sm" type="button" id="btn-save-actor">保存主体信息</button>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">第 1 步 · 扫码选码</h3>
+  <div class="pick-grid">
+    <div class="pick-box">
+      <div class="pick-title">📷 摄像头扫码</div>
+      <div id="reader" class="reader" style="display:none"></div>
+      <div class="btn-row" style="margin-top:8px">
+        <button class="btn" id="btn-scan" type="button">启动扫码</button>
+        <button class="btn ghost sm" id="btn-stop" type="button" style="display:none">停止</button>
+      </div>
+    </div>
+    <div class="pick-box">
+      <div class="pick-title">⌨️ 手动输入</div>
+      <input id="manual" placeholder="输入追溯码，如 TC260917XXXXXXX-XXXX">
+      <div class="btn-row" style="margin-top:8px">
+        <button class="btn ghost" id="btn-manual" type="button">查询并选择</button>
+      </div>
+    </div>
+  </div>
+  <div id="status" style="margin-top:12px"></div>
+</div>
+
+<!-- 第 2 步：上游环节已经登记的信息（只读） -->
+<div id="upstream"></div>
+
+<!-- 第 3 步：只有本端允许上报的字段 -->
+<form id="form" style="display:none">
+  <div class="card">
+    <h3 style="margin-top:0">第 3 步 · 录入本端内容</h3>
+    <p class="small">当前追溯码：<span class="code-chip" id="code-show"></span></p>
+    <p class="small muted">
+      本端只允许上报下列字段，其他端口的内容本端无法填写也无法修改。带 <b style="color:#c02b2b">*</b> 为必填。
+      提交成功后，这些内容才会被写进该码的追溯记录并上链存证。
+    </p>
+    {% block form_extra %}{% endblock %}
+    {% for g in field_groups %}
+      <h4 class="grp">{{ g.name }}</h4>
+      <div class="grid g2">
+        {% for f in g.fields %}
+        {% if f.type == 'image' %}
+        <div class="span2">
+          <label for="shot_{{ f.k }}">{{ f.label }}</label>
+          <div class="shot-box">
+            <div class="shot-row">
+              <div class="shot-prev" id="shot-prev-{{ f.k }}">未选择图片</div>
+              <div class="shot-ops">
+                <input id="shot_{{ f.k }}" type="file" accept="image/*" capture="environment">
+                <p class="small muted">{{ f.ph or '可选。拍张照片随记录一起上链存证。' }}</p>
+                <div class="btn-row">
+                  <button class="btn ghost sm" type="button"
+                          onclick="PortUI.clearPhoto('{{ f.k }}')">移除图片</button>
+                </div>
+                <p class="small muted" id="shot-info-{{ f.k }}" style="margin-bottom:0"></p>
+              </div>
+            </div>
+          </div>
+          {# 真正提交的是压缩后的 data URL，随 payload 一起进哈希 #}
+          <input class="lock-hidden" id="f_{{ f.k }}" data-field="{{ f.k }}" type="text" value="" tabindex="-1">
+        </div>
+        {% else %}
+        <div class="{{ 'span2' if f.type == 'textarea' else '' }}">
+          <label class="{{ 'req' if f.required }}" for="f_{{ f.k }}">{{ f.label }}</label>
+          {% if f.server_time %}
+            {# 与服务端系统时间同步，只读；服务端提交时还会强制覆盖，前端改了也没用 #}
+            <input id="f_{{ f.k }}" data-field="{{ f.k }}" type="text" class="locked"
+                   data-locked="1" value="{{ server_now }}" readonly disabled>
+            <p class="lock-note">🔒 由系统自动生成（中国标准时间），不可修改</p>
+          {% elif f.type == 'select' %}
+            <select id="f_{{ f.k }}" data-field="{{ f.k }}">
+              <option value="">请选择</option>
+              {% for o in f.options %}<option value="{{ o }}">{{ o }}</option>{% endfor %}
+            </select>
+          {% elif f.type == 'textarea' %}
+            <textarea id="f_{{ f.k }}" data-field="{{ f.k }}" placeholder="{{ f.ph or '' }}"></textarea>
+          {% else %}
+            <input id="f_{{ f.k }}" data-field="{{ f.k }}" type="{{ f.type }}"
+                   placeholder="{{ f.ph or '' }}" {% if f.type == 'date' %}max="2099-12-31"{% endif %}>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+    {% endfor %}
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn" id="btn-submit" type="submit">提交并存证</button>
+      <button class="btn ghost" type="button" onclick="PortUI.next()">换一个码</button>
+    </div>
+    <p class="small muted" style="margin-bottom:0">提交后系统对本次数据计算摘要，串接上一条记录的哈希写入存证链，任何人改不动。</p>
+  </div>
+</form>
+
+<div id="result"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/app.js"></script>
+<script src="/static/port.js"></script>
+{% endblock %}

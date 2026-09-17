@@ -1,0 +1,16 @@
+{% extends "port_base.html" %}
+{% block title %}{{ site.name }} · {{ site.sub }}{% endblock %}
+
+{% block notice %}
+<div class="card tip">
+  <h3 style="margin-top:0">本端是唯一可以反复扫码的端口</h3>
+  <p class="small">商品每一次出库、装车、转运、入库、签收，都在这里追加一条记录。
+     一车货可以连续扫，扫一件记一条，扫完后所有记录会串在同一条哈希链上。</p>
+  <div class="tip-grid">
+    <div><b>前置要求</b><span>商品必须已完成生产登记，否则系统会拒绝写入</span></div>
+    <div><b>连续作业</b><span>提交后可直接继续扫下一个码，操作主体只需设置一次</span></div>
+    <div><b>温控品类</b><span>冷链生鲜请在"运输环境"里填写实测温度，这是事后定责的关键证据</span></div>
+    <div><b>异常留痕</b><span>外包装破损、超时滞留等情况写进备注，责任划分时以链上记录为准</span></div>
+  </div>
+</div>
+{% endblock %}

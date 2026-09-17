@@ -1,0 +1,17 @@
+{% extends "port_base.html" %}
+{% block title %}{{ site.name }} · {{ site.sub }}{% endblock %}
+
+{% block notice %}
+<div class="card tip">
+  <h3 style="margin-top:0">本端是整条追溯链的起点</h3>
+  <p class="small">赋码时二维码是一张<b>空码</b>——只代表一件商品的身份，不含任何商品信息。
+     你在这里登记的产品名称、规格、批次、生产日期等内容，提交后才会写进该码的追溯记录，
+     消费者扫码看到的商品身份就是这一份。</p>
+  <div class="tip-grid">
+    <div><b>登记时机</b><span>产品下线、出厂检验合格后即可登记</span></div>
+    <div><b>可登记次数</b><span>每个码 1 次，登记后如需更正请联系管理员清除后重新登记</span></div>
+    <div><b>后续流转</b><span>登记完成后，物流、门店、消费者才能继续往这个码上追加记录</span></div>
+    <div><b>建议做法</b><span>按批次批量赋码，产线每完成一件登记一件，避免事后补录</span></div>
+  </div>
+</div>
+{% endblock %}

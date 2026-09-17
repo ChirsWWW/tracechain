@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}打印追溯码 · 溯链 TraceChain{% endblock %}
+{% block body %}
+
+<div class="noprint card">
+  <h2 style="margin-top:0">打印二维码标签</h2>
+  <p class="small muted">共 {{ codes|length }} 个追溯码。这些是空码——标签印制时不含任何商品信息，
+    生产端扫码登记后，消费者扫码才能看到商品身份。建议用不干胶标签打印，并配合易碎纸或揭开留痕工艺，
+    降低整标被转移复用的风险。</p>
+  <div class="btn-row">
+    <button class="btn" onclick="window.print()">🖨 打印 / 存为 PDF</button>
+    <a class="btn ghost" href="/admin">返回管理端</a>
+  </div>
+</div>
+
+<div class="print-grid">
+{% for c in codes %}
+  <div class="qr-cell">
+    <img src="/qr/{{ c }}.png" alt="{{ c }}">
+    <div class="mono" style="font-size:12px;margin-top:4px">{{ c }}</div>
+    <div class="small muted" style="font-size:11px">扫码查验真伪</div>
+  </div>
+{% endfor %}
+</div>
+
+{% if not codes %}
+  <div class="card"><p class="small muted" style="margin:0">没有传入追溯码。请在管理端生成后点击「打印二维码」。</p></div>
+{% endif %}
+
+{% endblock %}

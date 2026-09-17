@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}商品验真 · {{ code }} · 溯链 TraceChain{% endblock %}
+{% block body %}
+
+<div class="narrow" style="margin:0 auto">
+
+{% if not valid %}
+  <div class="card">
+    <div class="alert bad"><b>⚠ 疑似伪造码</b><br>
+      追溯码 <span class="mono">{{ code }}</span> 的校验位不通过，无法确认它由本平台签发。
+      请勿据此判断商品真伪，建议联系销售方核实。</div>
+    <p class="small muted">追溯码校验位由平台密钥派生，不知道密钥就无法生成合规码段。</p>
+  </div>
+
+{% elif not rec %}
+  <div class="card">
+    <div class="alert bad"><b>⚠ 未赋码</b><br>
+      该码格式有效，但本平台没有它的赋码记录。可能原因：标签来自其他渠道、码已被管理员清除、
+      或该码是复制出来的。</div>
+    <p class="small muted">追溯码：<span class="mono">{{ code }}</span></p>
+  </div>
+
+{% else %}
+
+  <div class="card">
+    <p class="small muted" style="margin:0">追溯码</p>
+    <div class="code-chip" style="font-size:16px">{{ code }}</div>
+
+    {% if rec.status == 'blank' %}
+      <div class="alert warn" style="margin-top:12px"><b>该码尚未登记任何内容</b><br>
+        标签已印制，但生产端还没有为这件商品登记信息。请向销售方核实。</div>
+    {% elif rec.status == 'cleared' %}
+      <div class="alert warn" style="margin-top:12px"><b>该码的记录已被管理员清除</b>，以下是清除后的当前状态。</div>
+    {% else %}
+      <h2 style="margin:14px 0 4px">{{ rec.product_name }}</h2>
+      <p class="small muted" style="margin:0">
+        {% if rec.spec %}规格：{{ rec.spec }}　{% endif %}
+        {% if rec.batch %}批次：{{ rec.batch }}　{% endif %}
+        {% if rec.producer %}生产方：{{ rec.producer }}{% endif %}
+      </p>
+    {% endif %}
+
+    <div class="alert {% if verify.valid %}ok{% else %}bad{% endif %}" style="margin-top:12px">
+      <b>{% if verify.valid %}✅ 存证链路完整{% else %}❌ 检测到异常{% endif %}</b><br>
+      {% if verify.valid %}
+        已复核 {{ verify.checked }} 条存证记录，哈希链连续、签名有效，记录自写入后未被改动。
+      {% else %}
+        {% for i in verify.issues %}· {{ i }}<br>{% endfor %}
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">追溯信息完整度</h3>
+    <p class="small muted" style="margin-top:0">哪一端上报了，哪一段才有记录。空白项说明该环节尚未上报。</p>
+    <div class="steps big">
+      {% for s in progress %}
+        <span class="step {{ 'done' if s.done else '' }}">
+          <b>{{ '✅' if s.done else '○' }}</b> {{ s.label }}{% if s.count > 1 %} ×{{ s.count }}{% endif %}
+        </span>
+        {% if not loop.last %}<span class="step-sep">→</span>{% endif %}
+      {% endfor %}
+    </div>
+    {% set consume_hits = scan.by_stage.get('consume', 0) if scan and scan.by_stage else 0 %}
+    {% if consume_hits > 1 or (scan and scan.total > 3) %}
+      <div class="alert warn" style="margin-bottom:0"><b>⚠ 扫码行为提示</b><br>
+        该码累计被扫描 {{ scan.total }} 次{% if consume_hits %}（消费端 {{ consume_hits }} 次）{% endif %}。
+        正品首次验真后被反复扫描属于异常，请结合购买渠道与实物标签综合判断。</div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">全链路记录</h3>
+    {% if trace %}
+      <ul class="timeline">
+      {% for ev in trace %}
+        <li class="{{ ev.stage }}">
+          <span class="dot"></span>
+          <div class="tl-head">
+            <span class="tl-title">{{ stages[ev.stage].label }} · {{ ev.event_type }}</span>
+            <span class="tl-time">{{ ev.timestamp }}</span>
+          </div>
+          <div class="small muted">上报主体：{{ ev.actor }}{% if ev.region %} · {{ ev.region }}{% endif %}</div>
+          <dl class="kv">
+            {% set L = labels_by_stage.get(ev.stage, {}) %}
+            {% for k, v in ev.payload.items() %}
+              {% if v %}
+                {% if v.startswith('data:image/') %}
+                  <dt>{{ L.get(k) or labels.get(k, k) }}</dt>
+                  <dd><a href="{{ v }}" target="_blank" rel="noopener">
+                    <img class="shot" src="{{ v }}" alt="{{ L.get(k) or '现场照片' }}"></a></dd>
+                {% else %}
+                  <dt>{{ L.get(k) or labels.get(k, k) }}</dt><dd>{{ v }}</dd>
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          </dl>
+          <div class="small mono muted" style="margin-top:6px">
+            数据指纹 {{ ev.payload_hash[:16] }}… ｜ 链哈希 {{ ev.event_hash[:16] }}…
+          </div>
+        </li>
+      {% endfor %}
+      </ul>
+    {% else %}
+      <p class="small muted" style="margin-bottom:0">该码还没有任何上报记录。</p>
+    {% endif %}
+  </div>
+
+{% endif %}
+
+<div class="card">
+  <h3 style="margin-top:0">怎么判断这件商品靠不靠谱</h3>
+  <ol class="flow small">
+    <li>看上面的<b>追溯信息完整度</b>：生产、流通、销售是否连得上，缺环节要问清楚原因</li>
+    <li>看<b>扫码次数</b>：一个码被几十个人扫过，基本可以判定是复制标签</li>
+    <li>看<b>实物标签</b>：是否易碎纸、有没有被揭开重贴的痕迹、边缘是否翘起</li>
+    <li>看<b>渠道价格</b>：明显低于官方渠道价的，优先走品牌官方验真渠道复核</li>
+  </ol>
+  <p class="small muted" style="margin-bottom:0">技术能保证的是记录没被改过，保证不了上报内容本身为真——这一点我们如实告知。</p>
+</div>
+
+</div>
+{% endblock %}

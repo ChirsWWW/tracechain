@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>{% block title %}{{ site.title }}{% endblock %}</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='88'>{{ site.icon }}</text></svg>">
+<link rel="stylesheet" href="/static/style.css">
+<style>:root{--brand:{{ site.accent }};--brand-2:{{ site.accent2 }};--brand-soft:{{ site.accent_soft }};}</style>
+</head>
+<body {% block bodyattr %}{% endblock %}>
+<header class="topbar">
+  <div class="wrap">
+    <span class="brand">
+      <span class="logo">{{ site.icon }}</span>
+      <b>{{ site.name }}</b><em class="sub">{{ site.sub }}</em>
+    </span>
+    {# 公众验真页对所有人开放，不给后台入口 #}
+    {% if is_core and not hide_nav %}
+    <nav class="nav">
+      <a href="/admin">管理控制台</a>
+      <a href="/chain">区块浏览器</a>
+    </nav>
+    {% endif %}
+  </div>
+</header>
+<main class="wrap">
+  {% block body %}{% endblock %}
+</main>
+<footer>
+  {{ site.name }} · {{ site.sub }} · {{ site.slogan }}<br>
+  一物一码 + 链式存证 ｜ 摘要算法 {{ 'SM3（国密）' if algo == 'SM3' else 'SHA-256' }}
+</footer>
+<div id="toast" class="toast"></div>
+<script>window.TC_LABELS = {{ labels|tojson }}; window.TC_LABELS_BY_STAGE = {{ labels_by_stage|tojson }}; window.TC_TRACE_BASE = {{ trace_base|tojson }};</script>
+<script src="/static/vendor/html5-qrcode.min.js" onerror="this.remove();window.__QR_NOLOCAL=true"></script>
+<script>
+if (window.__QR_NOLOCAL) {
+  var s = document.createElement('script');
+  s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+  document.head.appendChild(s);
+}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

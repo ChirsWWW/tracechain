@@ -1,0 +1,16 @@
+{% extends "port_base.html" %}
+{% block title %}{{ site.name }} · {{ site.sub }}{% endblock %}
+
+{% block notice %}
+<div class="card tip">
+  <h3 style="margin-top:0">本端面向终端消费者</h3>
+  <p class="small">扫商品上的二维码，看到的就是这件商品从生产到售出的全部记录。
+     你不是必须填表，只想看真假的话，直接看下面的"该码已存证记录"就够了。</p>
+  <div class="tip-grid">
+    <div><b>怎么判断真假</b><span>一看存证链路是否完整，二看本码被扫过多少次，三看实物标签有无揭开痕迹</span></div>
+    <div><b>为什么要登记</b><span>你的购买渠道与反馈会被记录，厂家处理售后时能看到真实来源</span></div>
+    <div><b>可登记次数</b><span>每个码 1 次。若提示已被扫过多次，请警惕复制码</span></div>
+    <div><b>如实说明</b><span>存证只能证明记录没被改过，不能保证上链前的数据本身为真</span></div>
+  </div>
+</div>
+{% endblock %}

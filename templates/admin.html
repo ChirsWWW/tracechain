@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+{% block title %}{{ site.name }} · {{ site.sub }}{% endblock %}
+{% block body %}
+
+<div id="login" class="card narrow" style="margin:20px auto">
+  <h2 style="margin-top:0">🔗 管理控制台</h2>
+  <p class="small muted">本站是存证核心节点，持有全部追溯码、存证链与公众验真页。赋码、码库、打印、清除记录都在这里。</p>
+  <input id="pwd" type="password" placeholder="管理口令">
+  <button class="btn full" style="margin-top:10px" onclick="doLogin()">进入</button>
+</div>
+
+<div id="panel" style="display:none">
+
+  <div class="card">
+    <div class="btn-row">
+      <button class="btn sm" onclick="tab('gen')">赋码</button>
+      <button class="btn ghost sm" onclick="tab('scan')">扫码管理</button>
+      <button class="btn ghost sm" onclick="tab('lib')">码库</button>
+      <button class="btn ghost sm" onclick="tab('sites')">站点网址</button>
+      <button class="btn ghost sm" onclick="tab('log')">操作日志</button>
+      <button class="btn ghost sm" onclick="sealNow()">立即打包区块</button>
+      <button class="btn ghost sm" onclick="exportBackup()">导出备份</button>
+      <button class="btn ghost sm" onclick="document.getElementById('restore-file').click()">导入备份</button>
+      <input type="file" id="restore-file" accept="application/json" style="display:none" onchange="restore(this)">
+    </div>
+    <p class="small muted" style="margin-bottom:0">免费部署实例重启后数据库会清空，建议定期导出备份，重启后用「导入备份」恢复。</p>
+  </div>
+
+  <!-- 站点网址 -->
+  <div id="tab-sites" class="card" style="display:none">
+    <h3 style="margin-top:0">五个独立作业站点</h3>
+    <p class="small muted">五个端口是五个彼此独立的网址，互不跳转。二维码只指向本站的公众验真页 <span class="mono">{{ base }}/t/&lt;追溯码&gt;</span>，与五个作业端完全解耦。</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>端口</th><th>独立网址</th><th>入口二维码</th><th>本端可上报字段</th></tr></thead>
+      <tbody>
+        {% for k in order %}
+        <tr>
+          <td><b>{{ sites[k].icon }} {{ stages[k].label }}</b><br><span class="small muted">{{ sites[k].name }} · {{ sites[k].sub }}</span></td>
+          <td><a class="small mono" href="{{ stage_urls[k] }}" target="_blank">{{ stage_urls[k] }}</a></td>
+          <td><img src="/qrurl?u={{ stage_urls[k]|urlencode }}" style="width:72px;height:72px" alt=""></td>
+          <td class="small">{{ stages[k].owner }}<br><span class="muted">{{ stages[k].repeat_hint }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    <p class="small muted">把对应二维码打印出来贴在车间、仓库、门店墙上，各岗位扫码直接进各自站点，彼此看不到对方系统。</p>
+  </div>
+
+
+  <!-- 赋码 -->
+  <div id="tab-gen" class="card">
+    <h3 style="margin-top:0">批量赋码</h3>
+    <p class="small muted">赋码只生成<b>空码</b>——一件商品一个唯一身份，此时不含任何商品信息。
+       商品名、批次、生产日期等内容由生产端扫码后录入。这是刻意的：码独立于所有作业端。</p>
+    <div class="grid g2">
+      <div><label for="count">生成数量</label><input id="count" type="number" value="10" min="1" max="500"></div>
+      <div><label for="prefix">码前缀</label><input id="prefix" value="TC" maxlength="4"></div>
+      <div class="span2"><label for="note">赋码批次备注（仅内部标识，不会出现在消费者验真页）</label>
+        <input id="note" placeholder="如：2026 年 9 月山茶油标签 第一批"></div>
+    </div>
+    <button class="btn" style="margin-top:12px" onclick="generate()">生成空码</button>
+    <div id="gen-result"></div>
+  </div>
+
+  <!-- 扫码管理 -->
+  <div id="tab-scan" class="card" style="display:none">
+    <h3 style="margin-top:0">扫码查询 · 清除记录</h3>
+    <p class="small muted">扫描商品追溯码，查看它上面的全部记录，并执行清除。清除不可逆，请确认后操作。</p>
+    <div class="scanner-box">
+      <div id="reader" class="reader" style="display:none"></div>
+      <div class="btn-row" style="justify-content:center;margin-top:10px">
+        <button class="btn" id="btn-scan" type="button">📷 扫码</button>
+        <button class="btn ghost sm" id="btn-stop" type="button" style="display:none">停止</button>
+      </div>
+      <div class="btn-row" style="margin-top:10px">
+        <input id="manual" placeholder="或手动输入追溯码" style="flex:1">
+        <button class="btn ghost" onclick="adminQuery(TC.extractCode(document.getElementById('manual').value))">查询</button>
+      </div>
+    </div>
+    <div id="scan-result"></div>
+  </div>
+
+  <!-- 码库 -->
+  <div id="tab-lib" class="card" style="display:none">
+    <h3 style="margin-top:0">码库</h3>
+    <div class="btn-row">
+      <input id="q" placeholder="按码 / 商品名 / 批次搜索" style="flex:1">
+      <button class="btn ghost" onclick="loadCodes()">搜索</button>
+    </div>
+    <div class="table-wrap" id="lib-result"></div>
+  </div>
+
+  <!-- 日志 -->
+  <div id="tab-log" class="card" style="display:none">
+    <h3 style="margin-top:0">管理操作日志</h3>
+    <div class="table-wrap" id="log-result"></div>
+  </div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="box">
+    <h3 style="margin-top:0">⚠ 清除该追溯码的全部记录</h3>
+    <p class="small">追溯码：<span class="code-chip" id="m-code"></span></p>
+    <p class="small" id="m-count"></p>
+    <label><input type="radio" name="mode" value="soft" checked> 软清除 —— 标记作废，保留存证痕迹（可审计，推荐）</label>
+    <label><input type="radio" name="mode" value="hard"> 硬删除 —— 物理删除全部明细与扫码记录</label>
+    <p class="small muted">已打包进区块的哈希无法抹除，这是链式存证的固有性质；硬删除只移除链下明细。</p>
+    <label for="m-op">操作人</label>
+    <input id="m-op" placeholder="姓名 / 工号">
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn danger" onclick="doClear()">确认清除</button>
+      <button class="btn ghost" onclick="closeModal()">取消</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/app.js"></script>
+<script>
+let TOKEN = localStorage.getItem('tc_admin') || '';
+let currentCode = '';
+const STAGE_ICON = {{ stages|tojson }};
+const STAGE_URLS = {{ stage_urls|tojson }};
+const TRACE_BASE = {{ trace_base|tojson }};
+
+function hdr(extra){ return Object.assign({'X-Admin-Token': TOKEN}, extra || {}); }
+async function api(url, body){
+  const r = await fetch(url, {method: body ? 'POST' : 'GET', headers: hdr({'Content-Type':'application/json'}),
+    body: body ? JSON.stringify(body) : undefined});
+  const j = await r.json();
+  if (j.reason === '管理员口令错误') { alert('口令失效，请重新登录'); logout(); }
+  return j;
+}
+function doLogin(){
+  TOKEN = document.getElementById('pwd').value.trim();
+  if (!TOKEN) return alert('请输入口令');
+  localStorage.setItem('tc_admin', TOKEN);
+  api('/api/codes?limit=1').then(j => {
+    if (!j.ok) { alert('口令错误'); localStorage.removeItem('tc_admin'); return; }
+    document.getElementById('login').style.display = 'none';
+    document.getElementById('panel').style.display = '';
+    loadCodes();
+  });
+}
+function logout(){ localStorage.removeItem('tc_admin'); location.reload(); }
+function tab(name){
+  ['gen','scan','lib','sites','log'].forEach(t => document.getElementById('tab-' + t).style.display = (t === name ? '' : 'none'));
+  if (name === 'lib') loadCodes();
+  if (name === 'log') loadLogs();
+}
+
+function progressHtml(progress, stage){
+  if (!progress) return '';
+  return '<div class="steps">' + progress.map(s =>
+    `<span class="step ${s.done ? 'done' : ''}">${s.done ? '✅' : '○'} ${s.label}${s.count > 1 ? '×' + s.count : ''}</span>`
+  ).join('<span class="step-sep">→</span>') + '</div>';
+}
+
+async function generate(){
+  const body = {
+    count: parseInt(document.getElementById('count').value || '10'),
+    prefix: document.getElementById('prefix').value,
+    note: document.getElementById('note').value
+  };
+  const j = await api('/api/codes/generate', body);
+  if (!j.ok) return alert(j.reason || '生成失败');
+  const rows = j.codes.map(c => `<tr>
+      <td class="mono">${c}</td>
+      <td><img src="/qr/${c}.png" style="width:64px;height:64px" alt=""></td>
+      <td><a class="small" href="${TRACE_BASE}/t/${c}" target="_blank">验真页</a></td>
+      <td><a class="small" href="${STAGE_URLS.produce}?code=${c}" target="_blank">去生产端登记 →</a></td>
+    </tr>`).join('');
+  document.getElementById('gen-result').innerHTML = `
+    <div class="alert ok">已生成 ${j.count} 个空码，等待生产端登记。</div>
+    <div class="table-wrap"><table><thead><tr><th>追溯码</th><th>二维码</th><th>验真页</th><th>下一步</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    <div class="btn-row" style="margin-top:10px">
+      <a class="btn ghost sm" href="/print?codes=${j.codes.join(',')}" target="_blank">打印二维码标签</a>
+      <button class="btn ghost sm" onclick="navigator.clipboard.writeText('${j.codes.join('\\n')}')">复制全部码</button>
+    </div>`;
+  loadCodes();
+}
+
+document.getElementById('btn-scan').onclick = () => {
+  document.getElementById('btn-scan').style.display = 'none';
+  document.getElementById('btn-stop').style.display = '';
+  TC.startScanner(code => adminQuery(code), () => {
+    document.getElementById('btn-scan').style.display = '';
+    document.getElementById('btn-stop').style.display = 'none';
+  });
+};
+document.getElementById('btn-stop').onclick = () => {
+  TC.stopScanner();
+  document.getElementById('btn-scan').style.display = '';
+  document.getElementById('btn-stop').style.display = 'none';
+};
+
+async function adminQuery(code){
+  code = TC.extractCode(code);
+  currentCode = code;
+  const j = await api('/api/scan', {code: code, stage: 'admin'});
+  const box = document.getElementById('scan-result');
+  if (!j.ok) { box.innerHTML = `<div class="alert bad">${j.reason}</div>`; return; }
+  const p = j.product || {};
+  box.innerHTML = `
+    <div class="alert info">追溯码 <b>${code}</b>　${p.product_name || '<span class="muted">空码（尚未登记）</span>'}
+      ${p.batch ? '｜批次 ' + p.batch : ''} ｜ 存证 ${j.events.length} 条 ｜ 累计扫码 ${j.scan_stats.total} 次</div>
+    ${progressHtml(j.progress)}
+    <div class="card">${TC.renderTimeline(j.events)}</div>
+    <button class="btn danger full" onclick="openModal('${code}', ${j.events.length})">清除该码的全部记录</button>`;
+}
+
+function openModal(code, n){
+  document.getElementById('m-code').textContent = code;
+  document.getElementById('m-count').textContent = `将清除 ${n} 条存证记录（含扫码留痕）。`;
+  document.getElementById('modal').classList.add('on');
+}
+function closeModal(){ document.getElementById('modal').classList.remove('on'); }
+
+async function doClear(){
+  const mode = document.querySelector('input[name=mode]:checked').value;
+  const op = document.getElementById('m-op').value.trim() || '管理员';
+  if (!confirm(`确认以「${mode === 'soft' ? '软清除' : '硬删除'}」方式清除 ${currentCode} 的全部记录？此操作不可撤销。`)) return;
+  const j = await api('/api/admin/clear', {code: currentCode, mode: mode, operator: op});
+  closeModal();
+  if (!j.ok) return alert(j.reason || '清除失败');
+  document.getElementById('scan-result').innerHTML =
+    `<div class="alert ok">已${mode === 'soft' ? '软清除' : '硬删除'} ${j.removed} 条记录。</div>`;
+  loadCodes();
+  loadLogs();
+}
+
+async function loadCodes(){
+  const q = (document.getElementById('q') || {}).value || '';
+  const j = await api('/api/codes?q=' + encodeURIComponent(q));
+  if (!j.ok) return;
+  const rows = (j.items || []).map(c => `<tr>
+      <td class="mono">${c.code}</td>
+      <td>${c.product_name ? TC.esc(c.product_name) : '<span class="muted">空码</span>'}</td>
+      <td>${c.batch || '-'}</td>
+      <td>${progressHtml(c.progress)}</td>
+      <td>${c.status === 'cleared' ? '<span class="badge warn">已清除</span>'
+           : (c.status === 'blank' ? '<span class="badge">待登记</span>' : '<span class="badge ok">已登记</span>')}</td>
+      <td><button class="btn ghost sm" onclick="adminQuery('${c.code}')">管理</button></td>
+    </tr>`).join('');
+  document.getElementById('lib-result').innerHTML =
+    `<table><thead><tr><th>追溯码</th><th>商品</th><th>批次</th><th>填充进度</th><th>状态</th><th>操作</th></tr></thead>
+     <tbody>${rows || '<tr><td colspan="6" class="muted">暂无数据</td></tr>'}</tbody></table>
+     <p class="small muted">共 ${j.total} 个码　<span class="muted">✅ 已登记 ｜ ○ 尚未上报</span></p>`;
+}
+
+async function loadLogs(){
+  const j = await api('/api/admin/logs');
+  const rows = (j.items || []).map(l => `<tr><td class="mono">${l.code || '-'}</td><td>${l.action}</td>
+    <td>${l.detail}</td><td>${l.operator}</td><td>${l.timestamp}</td></tr>`).join('');
+  document.getElementById('log-result').innerHTML =
+    `<table><thead><tr><th>追溯码</th><th>操作</th><th>明细</th><th>操作人</th><th>时间</th></tr></thead>
+     <tbody>${rows || '<tr><td colspan="5" class="muted">暂无记录</td></tr>'}</tbody></table>`;
+}
+
+async function sealNow(){
+  const j = await api('/api/chain/seal', {});
+  alert(j.sealed ? `已打包 ${j.sealed} 条记录为区块` : '暂无待打包记录');
+}
+
+function exportBackup(){
+  fetch('/api/backup', {headers: hdr()}).then(r => {
+    if (!r.ok) { alert('导出失败，口令可能已失效'); return null; }
+    return r.blob();
+  }).then(blob => {
+    if (!blob) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'tracechain-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+    a.click();
+  });
+}
+
+async function restore(input){
+  const f = input.files && input.files[0];
+  input.value = '';
+  if (!f) return;
+  let data;
+  try { data = JSON.parse(await f.text()); }
+  catch (e) { return alert('不是有效的 JSON 备份文件'); }
+  if (!confirm('导入将覆盖当前全部数据，确认继续？')) return;
+  const j = await api('/api/restore', data);
+  if (!j.ok) return alert('恢复失败：' + (j.reason || '未知错误'));
+  alert('恢复完成：' + JSON.stringify(j.restored));
+  location.reload();
+}
+
+if (TOKEN) doLogin();
+</script>
+{% endblock %}

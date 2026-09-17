@@ -1,0 +1,16 @@
+{% extends "port_base.html" %}
+{% block title %}{{ site.name }} · {{ site.sub }}{% endblock %}
+
+{% block notice %}
+<div class="card tip">
+  <h3 style="margin-top:0">本端负责销售核销</h3>
+  <p class="small">商品售出时扫码核销一次。核销记录是后续退换货、窜货稽查、售后定责的依据，
+     也是消费者在验真页上看到的"已售出"状态来源。</p>
+  <div class="tip-grid">
+    <div><b>前置要求</b><span>商品必须已完成生产登记</span></div>
+    <div><b>可核销次数</b><span>每个码 1 次，重复核销会被拒绝</span></div>
+    <div><b>窜货稽查</b><span>若商品被授权区域外的门店核销，系统按门店编码与地区留痕，可回溯</span></div>
+    <div><b>退货处理</b><span>退回请选择"退货入库"，不要重复做销售核销</span></div>
+  </div>
+</div>
+{% endblock %}
