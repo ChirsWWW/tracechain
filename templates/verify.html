@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% import "icons.html" as I %}
+{% block title %}验真 · {{ code }} · 溯链 TraceChain{% endblock %}
+{% block body %}
+
+{# 结论优先级：码不合规 → 未赋码 → 未登记 → 已清除 → 正常（看链路校验） #}
+{% if not valid %}
+  {% set vk, vt = 'bad', '追溯码校验未通过' %}
+  {% set vs = '校验位不匹配，无法确认该码由本平台签发。请勿据此判断商品真伪。' %}
+{% elif not rec %}
+  {% set vk, vt = 'bad', '该码未在本平台赋码' %}
+  {% set vs = '码格式有效，但平台没有它的签发记录。可能来自其他渠道、已被清除，或为复制码。' %}
+{% elif rec.status == 'blank' %}
+  {% set vk, vt = 'warn', '该码尚未登记商品信息' %}
+  {% set vs = '标签已印制，生产端还未为这件商品登记内容。' %}
+{% elif rec.status == 'cleared' %}
+  {% set vk, vt = 'warn', '该码的记录已被清除' %}
+  {% set vs = '管理员已清除该码的追溯记录，以下为清除后的当前状态。' %}
+{% elif verify.valid %}
+  {% set vk, vt = 'ok', '存证链路完整' %}
+  {% set vs = '已复核 ' ~ verify.checked ~ ' 条记录，哈希链连续、签名有效，记录自写入后未被改动。' %}
+{% else %}
+  {% set vk, vt = 'bad', '存证链路存在异常' %}
+  {% set vs = '记录之间无法衔接，具体问题见下。' %}
+{% endif %}
+
+{% set ns = namespace(shipped=false, sold=false, filled=0) %}
+{% for s in progress %}
+  {% if s.stage == 'logistics' and s.done %}{% set ns.shipped = true %}{% endif %}
+  {% if s.stage == 'retail' and s.done %}{% set ns.sold = true %}{% endif %}
+  {% if s.done %}{% set ns.filled = ns.filled + 1 %}{% endif %}
+{% endfor %}
+
+<div class="narrow" style="margin:0 auto">
+
+<div class="card" style="padding:0;overflow:hidden">
+  <div class="verdict {{ vk }}">
+    <span class="vi">{{ I.icon('check', 15) if vk == 'ok' else (I.icon('alert', 15) if vk == 'warn' else I.icon('close', 15)) }}</span>
+    <div>
+      <div class="vt">{{ vt }}</div>
+      <div class="vs">{{ vs }}</div>
+    </div>
+  </div>
+
+  <div style="padding:16px 20px">
+    <div class="doc-line" style="justify-content:space-between;align-items:flex-start">
+      <div>
+        <div class="lbl">追溯码</div>
+        <div class="code-chip lg" style="margin-top:5px">{{ code }}</div>
+      </div>
+      {% if rec and rec.status == 'active' %}
+        {% if ns.sold %}<span class="tag ok">已售出</span>
+        {% elif ns.shipped %}<span class="tag warn">在途</span>
+        {% else %}<span class="tag brand">已出厂</span>{% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  {% if rec and rec.status == 'active' %}
+  <div style="padding:0 20px 18px">
+    <div class="arch">
+      <div class="arch-name">{{ rec.product_name }}</div>
+      <div class="arch-meta">
+        {% if rec.spec %}<span>规格 <b>{{ rec.spec }}</b></span>{% endif %}
+        {% if rec.batch %}<span>批次 <b>{{ rec.batch }}</b></span>{% endif %}
+        {% if rec.producer %}<span>生产方 <b>{{ rec.producer }}</b></span>{% endif %}
+        {% if rec.created_at %}<span>赋码时间 <b class="mono">{{ rec.created_at }}</b></span>{% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if verify and not verify.valid %}
+  <div style="padding:0 20px 18px">
+    <div class="alert bad" style="margin:0">
+      <b>检测到的异常</b>
+      <ul class="flow" style="margin-bottom:0">
+        {% for i in verify.issues %}<li>{{ i }}</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{% if rec %}
+<div class="card">
+  <div class="card-hd">
+    <div>
+      <div class="t">追溯信息完整度</div>
+      <div class="s">哪个环节上报过，哪一段才有记录；空白表示该环节尚未上报</div>
+    </div>
+    <div class="r">{{ ns.filled }} / {{ progress | length }}</div>
+  </div>
+  <div class="steps big">
+    {% for s in progress %}
+      <span class="step {{ 'done' if s.done else '' }}">{{ s.label }}
+        {%- if s.count > 1 %}<em>×{{ s.count }}</em>{% endif %}</span>
+      {% if not loop.last %}<span class="step-sep"></span>{% endif %}
+    {% endfor %}
+  </div>
+  {% set consume_hits = scan.by_stage.get('consume', 0) if scan and scan.by_stage else 0 %}
+  {% if consume_hits > 1 or (scan and scan.total > 3) %}
+    <div class="alert warn" style="margin:14px 0 0">
+      <b>扫描次数异常提示</b><br>
+      该码累计被扫描 {{ scan.total }} 次{% if consume_hits %}（消费端 {{ consume_hits }} 次）{% endif %}。
+      正品首次验真后被反复扫描属于异常，请结合购买渠道与实物标签综合判断。
+    </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="card-hd">
+    <div>
+      <div class="t">全链路存证记录</div>
+      <div class="s">按写入时间排列，每条记录均含数据摘要与链上哈希</div>
+    </div>
+    <div class="r">{{ trace | length }} RECORDS</div>
+  </div>
+  {% if trace %}
+    <ul class="timeline">
+    {% for ev in trace %}
+      <li class="{{ ev.stage }}">
+        <span class="dot"></span>
+        <div class="tl-head">
+          <span class="tl-title">{{ stages[ev.stage].label }} · {{ ev.event_type }}</span>
+          <span class="tl-time">{{ ev.timestamp }}</span>
+        </div>
+        <div class="up-meta">
+          <span>上报主体 {{ ev.actor }}{% if ev.region %} · {{ ev.region }}{% endif %}</span>
+          <span class="mono">记录 #{{ '%04d' % ev.seq }}</span>
+        </div>
+        <dl class="kv">
+          {% set L = labels_by_stage.get(ev.stage, {}) %}
+          {% for k, v in ev.payload.items() %}
+            {% if v %}
+              {% if v.startswith('data:image/') %}
+                <dt>{{ L.get(k) or labels.get(k, k) }}</dt>
+                <dd><a href="{{ v }}" target="_blank" rel="noopener">
+                  <img class="shot" src="{{ v }}" alt="{{ L.get(k) or '现场照片' }}"></a></dd>
+              {% else %}
+                <dt>{{ L.get(k) or labels.get(k, k) }}</dt><dd>{{ v }}</dd>
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+        </dl>
+        <div class="up-meta" style="margin-top:9px">
+          <span class="mono">数据摘要 {{ ev.payload_hash[:16] }}…</span>
+          <span class="mono">链哈希 {{ ev.event_hash[:16] }}…</span>
+        </div>
+      </li>
+    {% endfor %}
+    </ul>
+  {% else %}
+    <div class="empty">该码还没有任何上报记录</div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-hd">
+    <div><div class="t">核验要点</div><div class="s">除平台记录外，建议同时核对实物</div></div>
+  </div>
+  <ol class="flow" style="margin-top:0">
+    <li>核对<b>追溯信息完整度</b>：生产、流通、销售是否连贯，缺环节须问明原因</li>
+    <li>核对<b>扫描次数</b>：一个码被大量设备扫描过，应警惕复制标签</li>
+    <li>核对<b>实物标签</b>：是否为易碎纸、有无揭开重贴痕迹、边缘是否翘起</li>
+    <li>核对<b>渠道价格</b>：明显低于官方渠道价的，建议通过品牌官方渠道复核</li>
+  </ol>
+  <p class="hint" style="margin-bottom:0">
+    平台能保证的是记录写入后未被改动，不能保证上报内容本身为真。这一点如实告知。
+  </p>
+</div>
+
+</div>
+{% endblock %}

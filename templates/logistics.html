@@ -1,0 +1,22 @@
+{% extends "port_base.html" %}
+{% import "icons.html" as I %}
+{% block title %}{{ site.name }} · {{ site.sub }}{% endblock %}
+
+{% block notice %}
+<div class="notice">
+  <div class="notice-hd">
+    <div class="t">{{ I.icon('clipboard', 15) }} 操作须知</div>
+    <div class="rule">LGT-REG-02</div>
+  </div>
+  <p class="small" style="margin:0 0 10px;color:var(--ink-2)">
+    商品每次出库、装车、转运、入库、签收，均在本端追加一条记录并即时上链。
+    本端是唯一不限次数的环节，可连续扫码作业。
+  </p>
+  <div class="notice-grid">
+    <div><b>前置条件</b><span>该码须已完成生产登记，否则系统拒绝写入</span></div>
+    <div><b>作业次数</b><span>不限次数，每扫一次追加一条记录</span></div>
+    <div><b>温控品类</b><span>运输环境须填写实测温度，作为事后定责依据</span></div>
+    <div><b>异常留痕</b><span>包装破损、滞留超时等情况写入备注，责任划分以链上记录为准</span></div>
+  </div>
+</div>
+{% endblock %}

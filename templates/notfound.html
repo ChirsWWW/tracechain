@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% import "icons.html" as I %}
+{% block title %}页面不存在 · {{ site.name }}{% endblock %}
+{% block body %}
+
+<div class="card narrow" style="margin:44px auto;padding:0;overflow:hidden">
+  <div class="verdict warn">
+    <span class="vi">{{ I.icon('alert', 15) }}</span>
+    <div>
+      <div class="vt">404　页面不存在</div>
+      <div class="vs">请求的地址不属于本站提供的功能范围</div>
+    </div>
+  </div>
+  <div style="padding:18px 20px">
+    {% if is_core %}
+      <p class="small" style="margin-top:0;color:var(--ink-2)">
+        本站是「{{ site.name }} · {{ site.sub }}」，对外提供管理控制台与公众验真页。
+      </p>
+      <div class="btn-row" style="margin-top:14px">
+        <a class="btn sm" href="/admin">管理控制台</a>
+        <a class="btn ghost sm" href="/chain">区块浏览器</a>
+      </div>
+    {% else %}
+      <p class="small" style="margin-top:0;color:var(--ink-2)">
+        本站是「{{ site.name }} · {{ site.sub }}」，只提供
+        <b>{{ stages[role].label }}</b>（{{ stages[role].owner }}）的作业界面，不提供其他端口的功能。
+      </p>
+      <p class="hint">办理其他环节的业务，请打开对应端口的独立网址，不能在站内切换。</p>
+      <div class="btn-row" style="margin-top:14px">
+        <a class="btn sm" href="/">返回本站首页</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

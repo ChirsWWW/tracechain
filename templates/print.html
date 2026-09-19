@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% import "icons.html" as I %}
+{% block title %}打印追溯码标签 · 溯链 TraceChain{% endblock %}
+{% block body %}
+
+<div class="noprint card">
+  <div class="card-hd">
+    <div>
+      <div class="t">打印二维码标签</div>
+      <div class="s">共 {{ codes|length }} 个追溯码，均为空码</div>
+    </div>
+    <div class="r">LABEL-PRINT</div>
+  </div>
+  <p class="small" style="margin-top:0;color:var(--ink-2)">
+    标签印制时不含任何商品信息，生产端扫码登记后消费者扫码才能看到商品身份。
+    建议使用不干胶标签，并配合易碎纸或揭开留痕工艺，降低整标被转移复用的风险。
+  </p>
+  <div class="btn-row">
+    <button class="btn sm" onclick="window.print()">{{ I.icon('file', 14) }} 打印 / 存为 PDF</button>
+    <a class="btn ghost sm" href="/admin">返回管理控制台</a>
+  </div>
+</div>
+
+{% if codes %}
+<div class="print-grid">
+{% for c in codes %}
+  <div class="qr-cell">
+    <img src="/qr/{{ c }}.png" alt="{{ c }}">
+    <div class="mono" style="font-size:11.5px;margin-top:6px;letter-spacing:.02em">{{ c }}</div>
+    <div class="muted" style="font-size:10.5px;margin-top:2px">扫码查验真伪</div>
+  </div>
+{% endfor %}
+</div>
+{% else %}
+  <div class="empty">没有传入追溯码。请在管理控制台生成后点击「打印二维码标签」。</div>
+{% endif %}
+
+{% endblock %}

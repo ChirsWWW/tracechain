@@ -1,0 +1,22 @@
+{% extends "port_base.html" %}
+{% import "icons.html" as I %}
+{% block title %}{{ site.name }} · {{ site.sub }}{% endblock %}
+
+{% block notice %}
+<div class="notice">
+  <div class="notice-hd">
+    <div class="t">{{ I.icon('clipboard', 15) }} 操作须知</div>
+    <div class="rule">RTL-REG-03</div>
+  </div>
+  <p class="small" style="margin:0 0 10px;color:var(--ink-2)">
+    商品售出时在本端核销一次。核销记录是后续退换货、窜货稽查与售后定责的依据，
+    同时也是消费者在验真页上看到的「已售出」状态来源。
+  </p>
+  <div class="notice-grid">
+    <div><b>前置条件</b><span>该码须已完成生产登记</span></div>
+    <div><b>核销次数</b><span>每码 1 次，重复核销将被系统拒绝</span></div>
+    <div><b>窜货稽查</b><span>按门店编码与所在地区留痕，可回溯核销位置</span></div>
+    <div><b>退货处理</b><span>退货请选择「退货入库」，不得重复核销</span></div>
+  </div>
+</div>
+{% endblock %}

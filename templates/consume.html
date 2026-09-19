@@ -1,0 +1,22 @@
+{% extends "port_base.html" %}
+{% import "icons.html" as I %}
+{% block title %}{{ site.name }} · {{ site.sub }}{% endblock %}
+
+{% block notice %}
+<div class="notice">
+  <div class="notice-hd">
+    <div class="t">{{ I.icon('clipboard', 15) }} 操作须知</div>
+    <div class="rule">CSM-REG-04</div>
+  </div>
+  <p class="small" style="margin:0 0 10px;color:var(--ink-2)">
+    扫描商品标签上的二维码，可查阅该件商品自生产至售出的全部存证记录。
+    反馈为选填项，不填写也可以正常查看真假。
+  </p>
+  <div class="notice-grid">
+    <div><b>真伪判断</b><span>看存证链路是否完整、该码被扫描次数、实物标签有无揭开痕迹</span></div>
+    <div><b>反馈用途</b><span>购买渠道与使用反馈将记入该码，供厂家处理售后时查阅</span></div>
+    <div><b>反馈次数</b><span>每码 1 次。若提示已被多次扫过，请警惕复制码</span></div>
+    <div><b>边界说明</b><span>存证仅证明记录未被篡改，不证明上链前的数据本身为真</span></div>
+  </div>
+</div>
+{% endblock %}

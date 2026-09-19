@@ -1,0 +1,4 @@
+Flask>=3.0,<4
+gunicorn>=22,<24
+qrcode>=7.4,<9
+Pillow>=10,<12
