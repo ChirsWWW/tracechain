@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% import "icons.html" as I %}
+{% block title %}区块浏览器 · 溯链 TraceChain{% endblock %}
+{% block body %}
+
+<div class="page-head">
+  <div class="mark">{{ I.icon('blocks', 22) }}</div>
+  <div class="txt">
+    <h1>区块浏览器</h1>
+    <p>每 {{ block_size }} 条存证记录打包为一个区块，区块内事件两两哈希生成 Merkle 根，区块之间依次串联</p>
+  </div>
+  <div class="facts">
+    <div><i>摘要算法</i><b>{{ 'SM3（国密）' if algo == 'SM3' else 'SHA-256' }}</b></div>
+    <div><i>区块容量</i><b>{{ block_size }} 条 / 块</b></div>
+    <div><i>节点</i><b class="mono">{{ srv.node }}</b></div>
+  </div>
+</div>
+
+<div class="statgrid" style="margin-bottom:12px">
+  <div class="stat"><div class="n">{{ stats.blocks }}</div><div class="l">区块数</div></div>
+  <div class="stat"><div class="n">{{ stats.events }}</div><div class="l">存证记录</div></div>
+  <div class="stat"><div class="n">{{ stats.pending }}</div><div class="l">待打包</div></div>
+  <div class="stat"><div class="n">{{ stats.codes }}</div><div class="l">追溯码</div></div>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden">
+  <div class="verdict {{ 'ok' if verify.valid else 'bad' }}">
+    <span class="vi">{{ I.icon('check', 15) if verify.valid else I.icon('close', 15) }}</span>
+    <div>
+      <div class="vt">{{ '全链校验通过' if verify.valid else '全链校验异常' }}</div>
+      <div class="vs">
+        {% if verify.valid %}
+          已复核 {{ verify.blocks }} 个区块，Merkle 根与区块哈希全部一致，未发现篡改痕迹。
+        {% else %}
+          {% for i in verify.issues %}{{ i }}{% if not loop.last %}；{% endif %}{% endfor %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hd">
+    <div>
+      <div class="t">区块列表</div>
+      <div class="s">任何一条记录被改动，对应区块的 Merkle 根与后续所有区块哈希都会失配</div>
+    </div>
+    <div class="r">{{ blocks | length }} BLOCKS</div>
+  </div>
+  {% if not blocks %}
+    <div class="empty">还没有区块。存证记录累计达到 {{ block_size }} 条时自动打包，也可在管理控制台手动打包</div>
+  {% else %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>高度</th><th>打包时间</th><th>事件数</th><th>Merkle 根</th><th>区块哈希</th><th>前序哈希</th></tr></thead>
+    <tbody>
+    {% for b in blocks %}
+      <tr>
+        <td><b>{{ b.height }}</b></td>
+        <td class="small mono">{{ b.timestamp }}</td>
+        <td>{{ b.event_count }}</td>
+        <td class="mono">{{ b.merkle_root[:24] }}…</td>
+        <td class="mono">{{ b.block_hash[:24] }}…</td>
+        <td class="mono">{{ (b.prev_hash or 'GENESIS')[:16] }}…</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="card-hd">
+    <div><div class="t">关于这套链的定位</div><div class="s">如实说明能力边界</div></div>
+  </div>
+  <p class="small" style="color:var(--ink-2)">
+    本系统实现的是链式存证账本：每条记录携带前序哈希，若干记录打包为带 Merkle 根的区块，区块再串联成链。
+    它与联盟链在数学结构上是同一套东西，差别在于<b>共识参与者</b>——本系统目前由单一服务端签名。
+  </p>
+  <p class="small" style="color:var(--ink-2);margin-bottom:0">
+    要达到方案建议书中的联盟链标准，需接入不少于 4 个节点、覆盖不少于 3 家相互独立的主体，
+    届时将本系统的签名环节替换为各主体私钥签名即可。当前准确定位是「链下数据库 + 链式存证」。
+  </p>
+</div>
+
+{% endblock %}

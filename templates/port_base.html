@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% import "icons.html" as I %}
+{% block bodyattr %}data-stage="{{ stage }}" data-trace-base="{{ trace_base }}"{% endblock %}
+{% block body %}
+
+{% set no = order.index(stage) + 1 %}
+
+<div class="page-head">
+  <div class="mark">{{ I.icon(meta.icon, 22) }}</div>
+  <div class="txt">
+    <h1><span class="stage-no">第 {{ '%02d' % no }} 环节</span>{{ meta.label }}作业台</h1>
+    <p>{{ meta.brief }}</p>
+  </div>
+  <div class="facts">
+    <div><i>使用方</i><b>{{ meta.owner }}</b></div>
+    <div><i>登记次数</i><b>{{ meta.repeat_hint }}</b></div>
+    <div><i>作业站点</i><b>{{ site.name }}</b></div>
+  </div>
+</div>
+
+{% block notice %}{% endblock %}
+
+<div class="card" style="padding:13px 20px">
+  <div class="wizard">
+    <div class="wz on" id="wz-1"><i>01</i>采集追溯码</div>
+    <span class="sep"></span>
+    <div class="wz" id="wz-2"><i>02</i>核对上游记录</div>
+    <span class="sep"></span>
+    <div class="wz" id="wz-3"><i>03</i>录入并上报</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hd">
+    <div>
+      <div class="t">作业主体</div>
+      <div class="s">本机身份，随记录一并写入存证；在本机只需设置一次</div>
+    </div>
+  </div>
+  <div id="actor-box"></div>
+  <div id="actor-form">
+    <div class="grid g2">
+      <div class="field">
+        <label class="req" for="actor">主体名称</label>
+        <input id="actor" placeholder="{{ meta.owner }}">
+      </div>
+      <div class="field">
+        <label for="region">所在地区</label>
+        <input id="region" placeholder="如：重庆市 渝北区">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn ghost sm" type="button" id="btn-save-actor">保存主体信息</button>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hd">
+    <div>
+      <div class="t">追溯码采集</div>
+      <div class="s">扫描商品标签上的二维码，或手工录入追溯码</div>
+    </div>
+    <div class="r">SCAN-STATION</div>
+  </div>
+  <div class="pick-grid">
+    <div class="pick-box">
+      <div class="pick-title">{{ I.icon('camera', 15) }} 摄像头扫描</div>
+      <div id="reader" class="reader" style="display:none"></div>
+      <div class="btn-row">
+        <button class="btn sm" id="btn-scan" type="button">启动扫描</button>
+        <button class="btn ghost sm" id="btn-stop" type="button" style="display:none">停止</button>
+      </div>
+      <p class="hint">需允许浏览器使用摄像头；连续作业时扫描窗口保持开启即可。</p>
+    </div>
+    <div class="pick-box">
+      <div class="pick-title">{{ I.icon('keyboard', 15) }} 手工录入</div>
+      <input id="manual" class="mono" placeholder="TC260917XXXXXXXX-XXXX" autocomplete="off">
+      <div class="btn-row">
+        <button class="btn ghost sm" id="btn-manual" type="button">校验并载入</button>
+      </div>
+      <p class="hint">支持粘贴二维码链接或完整追溯码，系统自动识别码段。</p>
+    </div>
+  </div>
+  <div id="status" style="margin-top:14px"></div>
+</div>
+
+<!-- 第 2 步：其他环节已登记记录（只读） -->
+<div id="upstream"></div>
+
+<!-- 第 3 步：本端允许上报的字段 -->
+<form id="form" style="display:none">
+  <div class="card">
+    <div class="card-hd">
+      <div>
+        <div class="t">本端上报内容</div>
+        <div class="s">只能填写本端字段，其他环节的内容不可修改；标 <b style="color:#9c2b2b">*</b> 为必填</div>
+      </div>
+      <div class="r">CODE <span id="code-show" class="mono" style="color:#2f5680">—</span></div>
+    </div>
+    {% block form_extra %}{% endblock %}
+    {% for g in field_groups %}
+      <h4 class="grp">{{ g.name }}</h4>
+      <div class="grid g2">
+        {% for f in g.fields %}
+        {% if f.type == 'image' %}
+        <div class="span2 field">
+          <label for="shot_{{ f.k }}">{{ f.label }}</label>
+          <div class="shot-box">
+            <div class="shot-row">
+              <div class="shot-prev" id="shot-prev-{{ f.k }}">未选择图片</div>
+              <div class="shot-ops">
+                <input id="shot_{{ f.k }}" type="file" accept="image/*" capture="environment">
+                <p class="hint">{{ f.ph or '选填。图片会随记录一起参与摘要计算，事后替换将导致链路校验失败。' }}</p>
+                <div class="btn-row">
+                  <button class="btn ghost sm" type="button"
+                          onclick="PortUI.clearPhoto('{{ f.k }}')">移除</button>
+                </div>
+                <p class="hint" id="shot-info-{{ f.k }}"></p>
+              </div>
+            </div>
+          </div>
+          {# 真正提交的是压缩后的 data URL，随 payload 一起进哈希 #}
+          <input class="lock-hidden" id="f_{{ f.k }}" data-field="{{ f.k }}" type="text" value="" tabindex="-1">
+        </div>
+        {% else %}
+        <div class="field {{ 'span2' if f.type == 'textarea' }}">
+          <label class="{{ 'req' if f.required }}" for="f_{{ f.k }}">{{ f.label }}</label>
+          {% if f.server_time %}
+            {# 与服务端系统时间同步，只读；服务端提交时还会强制覆盖，前端改了也没用 #}
+            <input id="f_{{ f.k }}" data-field="{{ f.k }}" type="text" class="locked"
+                   data-locked="1" value="{{ server_now }}" readonly disabled>
+            <p class="lock-note">{{ I.icon('lock', 11) }} 系统时间（UTC+8），自动生成，不可修改</p>
+          {% elif f.type == 'select' %}
+            <select id="f_{{ f.k }}" data-field="{{ f.k }}">
+              <option value="">请选择</option>
+              {% for o in f.options %}<option value="{{ o }}">{{ o }}</option>{% endfor %}
+            </select>
+          {% elif f.type == 'textarea' %}
+            <textarea id="f_{{ f.k }}" data-field="{{ f.k }}" placeholder="{{ f.ph or '' }}"></textarea>
+          {% else %}
+            <input id="f_{{ f.k }}" data-field="{{ f.k }}" type="{{ f.type }}"
+                   placeholder="{{ f.ph or '' }}" {% if f.type == 'date' %}max="2099-12-31"{% endif %}>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+    {% endfor %}
+    <div class="card-hd" style="border-bottom:0;border-top:1px solid var(--line);
+         margin:22px 0 0;padding:14px 0 0">
+      <div class="s">提交后系统对本次数据计算摘要，串接上一条记录的哈希写入存证链，写入后不可修改。</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="btn-submit" type="submit">{{ I.icon('send', 15) }} 提交并存证</button>
+      <button class="btn ghost" type="button" onclick="PortUI.next()">换一个码</button>
+    </div>
+  </div>
+</form>
+
+<div id="result"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/app.js"></script>
+<script src="/static/port.js"></script>
+{% endblock %}

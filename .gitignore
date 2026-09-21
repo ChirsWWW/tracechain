@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+venv/
+.venv/
+
+# 数据文件（部署环境数据库不入库）
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# 本地密钥
+.env
+.env.local
+
+# 备份导出
+*.backup.json
+
+# 编辑器/系统
+.vscode/
+.DS_Store
+Thumbs.db
+
+# 日志与本地运行产物
+server.log
+push_via_api.py
+seed_demo.py
+*.log
+*.out
+data/
+
+# 本机凭证（含 token，切勿入库）
+gh_cred.txt
+render_key.txt
+kill_result.txt
+*.db
+bak.json
+tmp_*.html
+tmp_*.txt
+static/_*.html

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+{% import "icons.html" as I %}
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>{% block title %}{{ site.title }}{% endblock %}</title>
+<meta name="description" content="{{ site.slogan }}">
+<meta name="theme-color" content="{{ site.accent }}">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='{{ site.accent|replace('#','%23') }}'/><circle cx='10.5' cy='21.5' r='2.8' fill='white'/><circle cx='21.5' cy='10.5' r='2.8' fill='white'/><path d='M10.5 18.7v-4l11-6.2' stroke='white' stroke-width='2' fill='none' stroke-linecap='round'/></svg>">
+<link rel="stylesheet" href="/static/style.css">
+<style>:root{--brand:{{ site.accent }};--brand-2:{{ site.accent2 }};--brand-soft:{{ site.accent_soft }};}</style>
+</head>
+<body {% block bodyattr %}{% endblock %}>
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="/">
+      <span class="logo">{{ I.site_icon(site.role, 17) }}</span>
+      <span class="name"><b>{{ site.name }}</b><em>{{ site.sub }}</em></span>
+    </a>
+    <span class="spacer"></span>
+    <div class="sysbar">
+      <span class="env-tag"><i></i>生产环境</span>
+      <span class="node mono">{{ srv.node }}</span>
+      <span class="clock" id="sys-clock" data-ts="{{ srv.ts }}" data-tz="{{ srv.tz }}">--</span>
+      {% if is_core and not hide_nav %}
+      <span class="nav-cells" style="padding:0 0 0 12px">
+        <nav class="nav">
+          <a href="/admin">{{ I.icon('sliders', 14) }} 管理控制台</a>
+          <a href="/chain">{{ I.icon('blocks', 14) }} 区块浏览器</a>
+        </nav>
+      </span>
+      {% endif %}
+    </div>
+  </div>
+</header>
+<main class="wrap">
+  {% block body %}{% endblock %}
+</main>
+<footer>
+  <div class="wrap">
+    <div class="fcol">
+      <span><b>{{ site.name }}</b>　{{ site.sub }}</span>
+      <span>{{ site.slogan }}</span>
+      <span>一物一码 · 链式存证</span>
+    </div>
+    <div class="fcol mono">
+      <span>版本 {{ srv.version }}</span>
+      <span>摘要 {{ 'SM3（国密）' if algo == 'SM3' else 'SHA-256' }}</span>
+      <span>节点 {{ srv.node }}</span>
+    </div>
+  </div>
+</footer>
+<div id="toast" class="toast"></div>
+<script>
+window.TC_LABELS = {{ labels|tojson }};
+window.TC_LABELS_BY_STAGE = {{ labels_by_stage|tojson }};
+window.TC_TRACE_BASE = {{ trace_base|tojson }};
+/* 顶栏时钟：以服务端时间为基准，按本地流逝推算，显示不受本机时区影响 */
+(function () {
+  var el = document.getElementById('sys-clock');
+  if (!el) return;
+  var base = (parseInt(el.dataset.ts, 10) || 0) + (parseInt(el.dataset.tz, 10) || 0);
+  var cli = Date.now();
+  function p(n) { return n < 10 ? '0' + n : '' + n; }
+  function tick() {
+    var d = new Date((base + (Date.now() - cli) / 1000) * 1000);
+    el.textContent = d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate()) +
+      ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()) + ':' + p(d.getUTCSeconds());
+  }
+  tick();
+  setInterval(tick, 1000);
+})();
+</script>
+<script src="/static/vendor/html5-qrcode.min.js" onerror="this.remove();window.__QR_NOLOCAL=true"></script>
+<script>
+if (window.__QR_NOLOCAL) {
+  var s = document.createElement('script');
+  s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+  document.head.appendChild(s);
+}
+</script>
+{% block scripts %}{% endblock %}
+<script>
+/* PWA：注册 Service Worker（网络优先，/api/ 动态数据不缓存） */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('/sw.js').catch(function () {});
+  });
+}
+</script>
+</body>
+</html>
